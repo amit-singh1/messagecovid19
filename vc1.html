@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+    <script type="text/javascript" src="https://flashphoner.com/downloads/builds/flashphoner_client/wcs_api-2.0/current/flashphoner.js"></script>
+    
+</head>
+<body onload="init_page()" style="background-color: #8C80FC;color:white">
+	<div class="containers" style="text-align: center">
+<div style="display: inline-block">
+	<br>
+	<p style="text-align: center">Guest Video: </p>
+	
+<div id="participant1Display" style="width:320px;height:240px;border: solid 5px;border-color: black;background-color: white"></div>
+<br/>
+	<p style="text-align: center">Host Video: </p>
+
+
+<div id="local" style="width:320px;height:240px;border: solid 5px;border-color: black;background-color: white"></div>
+<br/>
+<label>Login</label>
+<input type="text" style="border: 1px solid" id="login">
+<br/>
+<button id="joinBtn">Join</button>
+<br/>
+<br>
+<div id="inviteAddress" style="border: 3px solid;border-color: black">Not connected</div>
+</div>
+</div>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+
+<script>
+
+
+var SESSION_STATUS = Flashphoner.constants.SESSION_STATUS;
+var STREAM_STATUS = Flashphoner.constants.STREAM_STATUS;
+var ROOM_EVENT = Flashphoner.roomApi.events;
+var participants = 2
+var connection; 
+var url = "wss://demo.flashphoner.com:8443";
+const id = `f${(~~(Math.random()*1e8)).toString(16)}`;
+ 
+function init_page() {
+    Flashphoner.init({});
+    joinBtn.onclick = connect;
+}
+  
+function connect() {   
+    connection = Flashphoner.roomApi.connect({
+        urlServer: url,
+        username: document.getElementById("login").value
+    }).on(SESSION_STATUS.ESTABLISHED, function(session) {
+        joinRoom();
+    });
+}
+  
+function joinRoom() {
+    connection.join({ name: getRoomName()})
+    .on(ROOM_EVENT.STATE, function(room) {
+        var participants = room.getParticipants();
+        setInviteAddress(room.name());
+        if (participants.length > 0) {
+            for (var i = 0; i < participants.length; i++) {
+                playParticipantsStream(participants[i]);
+            }
+        }
+        publishLocalMedia(room);
+    }).on(ROOM_EVENT.JOINED, function(participant) {
+        playParticipantsStream(participant);
+        console.log(participant.name(), "joined");
+    }).on(ROOM_EVENT.PUBLISHED, function(participant) {
+       playParticipantsStream(participant);
+    });
+}
+  
+function playParticipantsStream(participant) {
+    if (participant.getStreams().length > 0) {
+        participant.getStreams()[0].play(document.getElementById("participant1Display"))
+        .on(STREAM_STATUS.PLAYING, function(playingStream) {});
+    }
+}
+  
+function getParamUrl(name, url) {
+    url = url.match(new RegExp(name + '=([^&=]+)'));
+    return url ? url[1] : false;
+}
+ 
+function getRoomName() {
+    var name = window.location.search;
+    if (name != "") {
+        return getParamUrl("roomName", name);
+    }
+    return "room-" + id;
+}
+  
+function setInviteAddress(name) {
+    var inviteURL = window.location.href;
+    document.getElementById("inviteAddress").textContent = (inviteURL.split("?")[0] + "?roomName=" + name);
+}
+  
+//publish local video
+function publishLocalMedia(room) {
+    var constraints = {
+        audio: true,
+        video: true
+    };
+    var display = document.getElementById("local");
+    room.publish({
+        display: display,
+        constraints: constraints,
+    }).on(STREAM_STATUS.PUBLISHING, function(stream) {});
+}
+
+
+
+</script>
+
+
+
+
+
+
+
+
+</body>
+</html> 
